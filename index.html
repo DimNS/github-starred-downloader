@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>GitHub starred JSON download</title>
+    </head>
+    <body>
+        <h3>Downloads your list of starred repositories</h3>
+        <form id="js-form">
+            <p>
+                <input type="text" name="github_account" placeholder="Your GitHub account name" />
+            </p>
+            <p>
+                <button type="button" onclick="runDownload()">Download</button>
+            </p>
+            <p id="js-progress"></p>
+        </form>
+
+        <script>
+            var app = {
+                data: [],
+                page: 1,
+                perPage: 100,
+                url: '',
+                progress: document.getElementById('js-progress'),
+            };
+
+            function runDownload() {
+                var form = document.getElementById('js-form');
+                var ghName = form.querySelector("[name='github_account']").value.trim();
+
+                if (!ghName || ghName.length === 0) {
+                    alert('Need enter your GitHub account name');
+
+                    return;
+                }
+
+                app.url = 'https://api.github.com/users/' + ghName + '/starred?per_page=' + app.perPage + '&callback=?';
+
+                var callback = function (result) {
+                    if (!result['data'] || result['data'].length === 0) {
+                        var date = new Date();
+                        var y = date.getFullYear();
+                        var m = date.getMonth() + 1;
+                        var d = date.getDate();
+
+                        if (m < 10) {
+                            m = '0' + m;
+                        }
+
+                        if (d < 10) {
+                            d = '0' + d;
+                        }
+
+                        var exportName = 'github-starred_' + y + '-' + m + '-' + d;
+
+                        downloadObjectAsJson(app.data, exportName);
+
+                        app.progress.insertAdjacentHTML('beforeend', 'Successfully downloaded<br>');
+
+                        return;
+                    }
+
+                    result['data'].forEach(function (element) {
+                        app.data.push(element);
+                    });
+
+                    app.progress.insertAdjacentHTML('beforeend', 'Page <b>' + app.page + '</b> collected<br>');
+
+                    app.page++;
+
+                    getJSONP(app.url + '&page=' + app.page, callback);
+                };
+
+                app.progress.insertAdjacentHTML('beforeend', 'Page collector started<br>');
+
+                getJSONP(app.url + '&page=' + app.page, callback);
+            }
+
+            function getJSONP(url, success) {
+                var ud = '_' + +new Date(),
+                    script = document.createElement('script'),
+                    head = document.getElementsByTagName('head')[0] || document.documentElement;
+
+                window[ud] = function (data) {
+                    head.removeChild(script);
+                    success && success(data);
+                };
+
+                script.src = url.replace('callback=?', 'callback=' + ud);
+                head.appendChild(script);
+            }
+
+            function downloadObjectAsJson(exportObj, exportName) {
+                var dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportObj));
+                var downloadAnchorNode = document.createElement('a');
+                downloadAnchorNode.setAttribute('href', dataStr);
+                downloadAnchorNode.setAttribute('download', exportName + '.json');
+                document.body.appendChild(downloadAnchorNode); // required for firefox
+                downloadAnchorNode.click();
+                downloadAnchorNode.remove();
+            }
+        </script>
+    </body>
+</html>
